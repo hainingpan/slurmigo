@@ -174,8 +174,10 @@ def build_sbatch_args(
     args: list[str] = []
     for key, value in merged.items():
         if value == "":
-            continue
-        args.append(f"--{key}={value}")
+            # Boolean flag like --requeue (no value)
+            args.append(f"--{key}")
+        else:
+            args.append(f"--{key}={value}")
 
     return args
 
@@ -187,13 +189,11 @@ def build_sbatch_args(
 
 def submit_job(wrapper_path: str, sbatch_args: list[str]) -> str | None:
     """Submit a job via sbatch and return the job ID string, or None on failure."""
-    args_str = " ".join(sbatch_args)
-    cmd = f"sbatch {args_str} {wrapper_path}"
+    cmd_list = ["sbatch"] + sbatch_args + [wrapper_path]
 
     try:
         result = subprocess.run(
-            cmd,
-            shell=True,
+            cmd_list,
             capture_output=True,
             text=True,
             check=True,

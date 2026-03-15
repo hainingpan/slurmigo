@@ -181,7 +181,9 @@ def parse_sbatch_directives(script_path: str) -> dict[str, str]:
                 if m is None:
                     continue
                 flag = m.group(1)
-                value = (m.group(2) or "").strip()
+                raw_value = (m.group(2) or "").strip()
+                # Strip inline comments: '--exclude=node01  # skip this' -> 'node01'
+                value = re.sub(r"\s+#\s+.*$", "", raw_value).strip()
 
                 if flag.startswith("--"):
                     # Long form: strip leading --
