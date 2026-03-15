@@ -1,0 +1,29 @@
+# slurmigo configuration file
+# Copy to slurmigo.toml and edit as needed.
+
+# Required: path to your parameter file (one set of params per line)
+params_file = "params.txt"
+
+# Required: path to your sbatch submission script
+script = "run.sh"
+
+# Directory where slurmigo stores state, logs, and wrappers (default: .slurmigo)
+state_dir = ".slurmigo"
+
+# Seconds between each poll cycle (default: 60)
+check_interval = 60
+
+# Maximum retry attempts per job (default: 3)
+max_resubmits = 3
+
+# Wall time multiplier on TIMEOUT resubmission (must be >= 1.0, default: 1.5)
+timeout_multiplier = 1.5
+
+# Memory multiplier on OUT_OF_MEMORY resubmission (must be >= 1.0, default: 1.5)
+oom_multiplier = 1.5
+
+# Maximum concurrent jobs per partition
+[max_jobs_per_partition]
+default = 150
+main = 500
+gpu = 150
