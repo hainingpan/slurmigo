@@ -325,8 +325,7 @@ def main() -> None:
 
                 if store.is_all_finished():
                     live.update(display_engine.render(errors=recent_errors[-5:]))
-                    time.sleep(2)
-                    break
+                    # Stay up so the user can inspect results. Ctrl+C to exit.
 
                 time.sleep(config.check_interval)
 
