@@ -175,6 +175,19 @@ slurmigo
 
 Command-line options always override config file settings.
 
+Each parameter file is tracked as a separate session. You can run multiple parameter files without interference:
+
+```bash
+slurmigo --params sweep_v1.txt --script run.sh    # session 1
+slurmigo --params sweep_v2.txt --script run.sh    # session 2 (independent)
+```
+
+If you modify a parameter file and run again, slurmigo detects the change and asks whether to continue the previous session or start fresh. To skip the prompt and always start a new session:
+
+```bash
+slurmigo --fresh --params params.txt --script run.sh
+```
+
 ---
 
 ## Configuration

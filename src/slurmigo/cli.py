@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib
 import logging
 import os
+import re
 import sys
 import time
 from typing import Any, cast
@@ -95,6 +97,22 @@ def _load_toml_file(path):
     return loaded
 
 
+def _db_name_from_params(params_file: str) -> str:
+    """Derive a DB filename from the params file basename."""
+    base = os.path.basename(params_file)
+    safe = re.sub(r"[^\w]", "_", base)
+    return f"{safe}.db"
+
+
+def _hash_file(path: str) -> str:
+    """Return SHA256 hex digest of file content."""
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 def load_config(path: str, overrides: dict[str, object]) -> Config:
     merged: dict[str, object] = {
         "state_dir": ".slurmigo",
@@ -171,6 +189,11 @@ def main() -> None:
         "--version", action="version", version=f"slurmigo {__version__}"
     )
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--fresh",
+        action="store_true",
+        help="Start a new session, archiving any existing state",
+    )
     args = parser.parse_args()
 
     overrides = {}
@@ -206,6 +229,42 @@ def main() -> None:
         print(f"  max_jobs_per_partition: {config.max_jobs_per_partition}")
         return
 
+    db_name = _db_name_from_params(config.params_file)
+    db_path = os.path.join(config.state_dir, db_name)
+    current_hash = _hash_file(config.params_file)
+
+    if args.fresh and os.path.exists(db_path):
+        archive_name = db_path + "." + time.strftime("%Y%m%d_%H%M%S")
+        os.rename(db_path, archive_name)
+        print(f"Archived previous session to {os.path.basename(archive_name)}")
+
+    if os.path.exists(db_path):
+        existing_store = Store(db_path)
+        stored_hash = existing_store.get_meta("params_hash")
+        counts = existing_store.get_counts()
+        total = sum(counts.values())
+        completed = counts.get("COMPLETED", 0)
+        failed_perm = counts.get("FAILED_PERMANENTLY", 0)
+
+        if stored_hash and stored_hash != current_hash:
+            print(
+                f"Session exists for {os.path.basename(config.params_file)} "
+                f"({total} tasks, {completed} completed, {failed_perm} failed)."
+            )
+            print("The params file has been modified since the last run.")
+            answer = (
+                input("Continue previous session or start new? [c/n]: ").strip().lower()
+            )
+            if answer == "n":
+                archive_name = db_path + "." + time.strftime("%Y%m%d_%H%M%S")
+                os.rename(db_path, archive_name)
+                print(f"Archived previous session to {os.path.basename(archive_name)}")
+            elif answer != "c":
+                print("Cancelled.")
+                sys.exit(0)
+        elif stored_hash is None:
+            existing_store.set_meta("params_hash", current_hash)
+
     rich_console = importlib.import_module("rich.console")
     rich_live = importlib.import_module("rich.live")
     Console = rich_console.Console
@@ -219,10 +278,11 @@ def main() -> None:
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
 
-    store = Store(os.path.join(config.state_dir, "state.db"))
+    store = Store(db_path)
     params, fmt = act.parse_params_file(config.params_file)
     _ = fmt
     store.initialize([str(p) for p in params])
+    store.set_meta("params_hash", current_hash)
 
     directives = sense.parse_sbatch_directives(config.script)
     partition = directives.get("partition", "default")

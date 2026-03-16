@@ -32,3 +32,5 @@ session.md
 .sisyphus/
 
 *.out
+.pytest_tmp
+.pytest_tmp_fresh

@@ -25,6 +25,7 @@ class Store:
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._create_table()
+        self._create_metadata_table()
 
     # ------------------------------------------------------------------
     # Schema
@@ -47,6 +48,17 @@ class Store:
                     original_mem       TEXT,
                     current_time_limit TEXT,
                     current_mem        TEXT
+                )
+                """
+            )
+
+    def _create_metadata_table(self) -> None:
+        with self._conn:
+            self._conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS metadata (
+                    key TEXT PRIMARY KEY,
+                    value TEXT
                 )
                 """
             )
@@ -99,6 +111,16 @@ class Store:
         """Shorthand for ``get_by_status('RUNNING')``."""
         return self.get_by_status("RUNNING")
 
+    def get_meta(self, key: str) -> str | None:
+        """Return metadata value for *key*, or None if missing."""
+        row = self._conn.execute(
+            "SELECT value FROM metadata WHERE key = ?",
+            (key,),
+        ).fetchone()
+        if row is None:
+            return None
+        return row[0]
+
     def get_pending(self) -> list[dict[str, object]]:
         """Shorthand for ``get_by_status('PENDING')``."""
         return self.get_by_status("PENDING")
@@ -138,6 +160,14 @@ class Store:
             self._conn.execute(
                 f"UPDATE jobs SET {set_clause} WHERE task_id = ?",
                 values,
+            )
+
+    def set_meta(self, key: str, value: str) -> None:
+        """Set metadata *key* to *value* (insert or overwrite)."""
+        with self._conn:
+            self._conn.execute(
+                "INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)",
+                (key, value),
             )
 
     # ------------------------------------------------------------------
