@@ -70,7 +70,13 @@ class Decide:
 
             final_state, reason, elapsed = normalized_final[job_id_str]
             final_state = str(final_state).upper()
+            # sacct's Reason column is often useless ("None", empty).
+            # The State column (TIMEOUT, OUT_OF_MEMORY, PREEMPTED) is the
+            # actual reason.  Use state as the failure_reason when reason
+            # is empty or uninformative.
             reason_value = reason or ""
+            if not reason_value or reason_value.lower() in ("none", ""):
+                reason_value = final_state
 
             if "COMPLETED" in final_state:
                 self.store.update_status(

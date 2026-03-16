@@ -68,6 +68,30 @@ class TestUpdateJobStatuses:
         row = store.get_by_status("FAILED")[0]
         assert row["failure_reason"] == "TIMEOUT"
 
+    def test_timeout_with_none_reason(self, decide, store):
+        """TIMEOUT with reason='None' (real sacct output) must still be detected."""
+        _submit_job(store, 1, 1001, status="RUNNING")
+        final = {"1001": ("TIMEOUT", "None", "10:00:26")}
+        decide.update_job_statuses({}, final)
+        row = store.get_by_status("FAILED")[0]
+        assert row["failure_reason"] == "TIMEOUT"
+
+    def test_oom_with_none_reason(self, decide, store):
+        """OUT_OF_MEMORY with reason='None' must still be detected."""
+        _submit_job(store, 1, 1001, status="RUNNING")
+        final = {"1001": ("OUT_OF_MEMORY", "None", "00:20:00")}
+        decide.update_job_statuses({}, final)
+        row = store.get_by_status("FAILED")[0]
+        assert row["failure_reason"] == "OUT_OF_MEMORY"
+
+    def test_preempted_with_none_reason(self, decide, store):
+        """PREEMPTED with reason='None' must still be detected."""
+        _submit_job(store, 1, 1001, status="RUNNING")
+        final = {"1001": ("PREEMPTED", "None", "00:05:00")}
+        decide.update_job_statuses({}, final)
+        row = store.get_by_status("FAILED")[0]
+        assert row["failure_reason"] == "PREEMPTED"
+
     def test_oom_becomes_failed(self, decide, store):
         """OUT_OF_MEMORY in sacct → FAILED with reason OUT_OF_MEMORY."""
         _submit_job(store, 1, 1001, status="RUNNING")
@@ -114,6 +138,21 @@ class TestHandleFailures:
         decide.handle_failures()
         row = store.get_by_status("PENDING_RESUBMISSION")[0]
         assert row["failure_reason"] == "TIMEOUT|scale_time"
+
+    def test_timeout_with_none_reason_full_chain(self, decide, store):
+        """Real scenario: sacct returns TIMEOUT with reason='None'."""
+        # Simulate: job was RUNNING, vanished from squeue, sacct says TIMEOUT
+        _submit_job(store, 1, 1001, status="RUNNING")
+        decide.update_job_statuses({}, {"1001": ("TIMEOUT", "None", "10:00:26")})
+        # Should be FAILED with reason=TIMEOUT (not 'None')
+        failed = store.get_by_status("FAILED")
+        assert len(failed) == 1
+        assert failed[0]["failure_reason"] == "TIMEOUT"
+        # Now handle_failures should route to PENDING_RESUBMISSION
+        decide.handle_failures()
+        resub = store.get_by_status("PENDING_RESUBMISSION")
+        assert len(resub) == 1
+        assert "scale_time" in resub[0]["failure_reason"]
 
     def test_oom_resubmission_with_scale_mem(self, decide, store):
         """OOM → PENDING_RESUBMISSION with 'OUT_OF_MEMORY|scale_mem'."""

@@ -276,15 +276,15 @@ uv sync
 
 ### Running Tests
 
-```bash
-pytest
-```
+1. Code logic (no Slurm required):
+   ```bash
+   pytest
+   ```
 
-Integration tests (require a real Slurm cluster):
-
-```bash
-pytest tests/integration/ -v
-```
+2. Job submission scenarios (requires Slurm, will submit real test jobs):
+   ```bash
+   pytest tests/integration/ -v -s
+   ```
 
 ### Issues
 

@@ -30,3 +30,5 @@ job_manager.py
 AGENTS.md
 session.md
 .sisyphus/
+
+*.out

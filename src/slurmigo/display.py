@@ -411,6 +411,7 @@ class Display:
             header_style="bold red",
         )
         table.add_column("Task", style="red", justify="right")
+        table.add_column("Job ID", style="red", justify="right")
         table.add_column("Status", justify="left")
         table.add_column("Reason", style="dim", justify="left")
 
@@ -419,6 +420,7 @@ class Display:
             reason = job.get("failure_reason") or "-"
             table.add_row(
                 f"#{job['task_id']}",
+                job.get("job_id") or "-",
                 status_short,
                 reason,
             )
