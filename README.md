@@ -2,7 +2,7 @@
 
 A job manager for Slurm. Submit, monitor, and automatically recover large batches of jobs from a single terminal.
 
-<!-- TODO: Add screenshot of the dashboard here -->
+![slurmigo dashboard](screenshot.png)
 
 ---
 
