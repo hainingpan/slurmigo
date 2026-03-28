@@ -417,7 +417,7 @@ class Display:
 
         for job in failed_jobs[:limit]:
             status_short = "PERM" if job["status"] == "FAILED_PERMANENTLY" else "FAIL"
-            reason = job.get("failure_reason") or "-"
+            reason = self._format_perm_reason(job)
             table.add_row(
                 f"#{job['task_id']}",
                 job.get("job_id") or "-",
@@ -429,6 +429,23 @@ class Display:
             table.add_row("...", f"+{len(failed_jobs) - limit}", "")
 
         return table
+
+    @staticmethod
+    def _format_perm_reason(job: dict) -> str:
+        raw = job.get("failure_reason") or "-"
+        if job.get("status") != "FAILED_PERMANENTLY":
+            return raw
+
+        if "|max_retries(" in raw:
+            base, rest = raw.split("|max_retries(", 1)
+            count = rest.rstrip(")")
+            return f"{base} ({count} retries)"
+
+        if "|not_retryable" in raw:
+            base = raw.split("|not_retryable", 1)[0]
+            return f"{base} (not retryable)"
+
+        return raw
 
     # ------------------------------------------------------------------
     # Error panel (NEW)

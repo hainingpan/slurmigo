@@ -108,7 +108,11 @@ class Decide:
             reason_upper = reason.upper()
 
             if submit_count >= int(self.config.max_resubmits):
-                self.store.update_status(task_id, "FAILED_PERMANENTLY")
+                self.store.update_status(
+                    task_id,
+                    "FAILED_PERMANENTLY",
+                    failure_reason=f"{reason}|max_retries({submit_count})",
+                )
                 continue
 
             if "preempt" in reason_lower or reason_upper == "PREEMPTED":
@@ -135,7 +139,11 @@ class Decide:
                 )
                 continue
 
-            self.store.update_status(task_id, "FAILED_PERMANENTLY")
+            self.store.update_status(
+                task_id,
+                "FAILED_PERMANENTLY",
+                failure_reason=f"{reason or 'unknown'}|not_retryable",
+            )
 
     def get_jobs_to_submit(
         self, queue_counts: Dict[str, int], partition: str
