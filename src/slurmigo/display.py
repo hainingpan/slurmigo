@@ -34,7 +34,7 @@ class Display:
     # Public API
     # ------------------------------------------------------------------
 
-    def render(self, errors: list[str] | None = None) -> Group:
+    def render(self, errors: list[str] | None = None, pending_reasons: dict[str, str] | None = None) -> Group:
         """Generate the full Rich display.
 
         Equivalent to the original ``generate_display(state)`` but reads
@@ -42,6 +42,7 @@ class Display:
 
         Returns a Rich ``Group`` containing all display elements.
         """
+        self._pending_reasons = pending_reasons or {}
         terminal_size = shutil.get_terminal_size()
         terminal_width = terminal_size.columns
         terminal_height = terminal_size.lines
@@ -351,12 +352,20 @@ class Display:
         )
         table.add_column("Task", style="yellow", justify="right")
         table.add_column("Job ID", justify="right")
+        table.add_column("Reason", style="dim", justify="left")
+        table.add_column("Retries", justify="right")
 
+        # Build a lookup of pending reasons from squeue
+        # (slurm_details is not available here, so we read reason from job record)
         for job in pending_jobs[:limit]:
-            table.add_row(f"#{job['task_id']}", str(job["job_id"]))
+            job_id = str(job["job_id"]) if job.get("job_id") else "-"
+            retries = str(max(0, (job.get("submit_count") or 1) - 1))
+            # Get reason from slurm_details if available
+            reason = self._pending_reasons.get(job_id, "") if hasattr(self, "_pending_reasons") else ""
+            table.add_row(f"#{job['task_id']}", job_id, reason, retries)
 
         if len(pending_jobs) > limit:
-            table.add_row("...", f"+{len(pending_jobs) - limit} more")
+            table.add_row("...", f"+{len(pending_jobs) - limit} more", "", "")
 
         return table
 

@@ -314,8 +314,10 @@ def main() -> None:
             screen=True,
         ) as live:
             while True:
+                pending_reasons: dict[str, str] = {}
                 try:
                     slurm_details = sense.get_job_details()
+                    pending_reasons = {jid: info.get("reason", "") for jid, info in slurm_details.items()}
 
                     tracked_ids = {
                         str(j["job_id"])
@@ -381,10 +383,10 @@ def main() -> None:
                     recent_errors.append(str(exc))
                     recent_errors = recent_errors[-10:]
 
-                live.update(display_engine.render(errors=recent_errors[-5:]))
+                live.update(display_engine.render(errors=recent_errors[-5:], pending_reasons=pending_reasons))
 
                 if store.is_all_finished():
-                    live.update(display_engine.render(errors=recent_errors[-5:]))
+                    live.update(display_engine.render(errors=recent_errors[-5:], pending_reasons=pending_reasons))
                     # Stay up so the user can inspect results. Ctrl+C to exit.
 
                 time.sleep(config.check_interval)

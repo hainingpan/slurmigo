@@ -54,13 +54,13 @@ def get_job_details() -> dict[str, dict[str, str]]:
     Returns
     -------
     dict[str, dict]
-        ``{"job_id": {"state": "RUNNING", "elapsed": "00:15:23"}, ...}``
+        ``{"job_id": {"state": "RUNNING", "elapsed": "00:15:23", "reason": "Priority"}, ...}``
         Empty dict on any error.
     """
     job_details: dict[str, dict[str, str]] = {}
     try:
         user = _get_user()
-        cmd = f'squeue -u {user} -h -o "%A|%T|%M"'
+        cmd = f'squeue -u {user} -h -o "%A|%T|%M|%r"'
         result = subprocess.run(
             cmd,
             shell=True,
@@ -75,7 +75,8 @@ def get_job_details() -> dict[str, dict[str, str]]:
                     job_id = parts[0].strip()
                     state = parts[1].strip()
                     elapsed = parts[2].strip()
-                    job_details[job_id] = {"state": state, "elapsed": elapsed}
+                    reason = parts[3].strip() if len(parts) >= 4 else ""
+                    job_details[job_id] = {"state": state, "elapsed": elapsed, "reason": reason}
         return job_details
     except (subprocess.CalledProcessError, FileNotFoundError) as e:
         logger.error("Error getting Slurm job details: %s", e)
